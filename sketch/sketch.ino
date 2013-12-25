@@ -1,11 +1,19 @@
 #include "SPI.h"
 #include "Adafruit_WS2801.h"
 
+typedef struct RGB {
+  byte r;
+  byte g;
+  byte b;
+};
+
 uint8_t yellowPin = 12;
 uint8_t greenPin  = 13;
 uint8_t ledCount  = 25;
 
-uint32_t currentColor;
+RGB currentColor = { 255, 255, 255 };
+uint8_t currentOpacity = 10;
+uint32_t currentByteColor;
 
 String serialInput;
 
@@ -20,19 +28,28 @@ void setup() {
 void loop() {
   readSerial();
   showCurrentColor(); 
+  setCurrentByteColor();
 }
 
 void showCurrentColor() {
   for (uint8_t i=0; i < ledCount; i++) {
-    strip.setPixelColor(i, currentColor);
+    strip.setPixelColor(i, currentByteColor);
   }
   strip.show();
+}
+
+void setCurrentByteColor(){  
+  currentByteColor = (currentColor.r * currentOpacity) / 100;
+  currentByteColor <<= 8;
+  currentByteColor |= (currentColor.g * currentOpacity) / 100;
+  currentByteColor <<= 8;
+  currentByteColor |= (currentColor.b * currentOpacity) / 100;
 }
 
 void receiveCommand(String command){
   int i = 0;
   char *token;
-  char *tokens[20];
+  char *tokens[100];
   char commandChars[command.length()]; 
   command.toCharArray(commandChars, command.length());
   
@@ -44,7 +61,13 @@ void receiveCommand(String command){
   
   switch(command[0]){
     case 'C':
-      currentColor = Color(atoi(tokens[1]), atoi(tokens[2]), atoi(tokens[3]));
+      currentColor = (RGB){ atoi(tokens[1]), atoi(tokens[2]), atoi(tokens[3]) };
+      setCurrentByteColor();
+      break;
+    case 'S':
+      char buffer[15];
+      sprintf(buffer, "S-%d-%d-%d-%d", currentColor.r, currentColor.g, currentColor.b, currentOpacity);
+      Serial.println(buffer);
       break;
     default:
       Serial.println('?');
@@ -63,15 +86,4 @@ void readSerial() {
       serialInput = "";
     }
   }
-}
-
-uint32_t Color(byte r, byte g, byte b)
-{
-  uint32_t c;
-  c = r;
-  c <<= 8;
-  c |= g;
-  c <<= 8;
-  c |= b;
-  return c;
 }
