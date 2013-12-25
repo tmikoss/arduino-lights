@@ -64,6 +64,10 @@ void receiveCommand(String command){
       currentColor = (RGB){ atoi(tokens[1]), atoi(tokens[2]), atoi(tokens[3]) };
       setCurrentByteColor();
       break;
+    case 'O':
+      currentOpacity = atoi(tokens[1]);
+      setCurrentByteColor();
+      break;
     case 'S':
       char buffer[15];
       sprintf(buffer, "S-%d-%d-%d-%d", currentColor.r, currentColor.g, currentColor.b, currentOpacity);
