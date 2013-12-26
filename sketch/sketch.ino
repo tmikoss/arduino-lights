@@ -1,5 +1,6 @@
 #include "SPI.h"
 #include "Adafruit_WS2801.h"
+#include <Time.h>  
 
 typedef struct RGB {
   byte r;
@@ -23,6 +24,7 @@ void setup() {
   Serial.begin(9600);
   strip.begin();
   strip.show();
+  setTime(1357041600);
 }
 
 void loop() {
@@ -72,6 +74,9 @@ void receiveCommand(String command){
       char buffer[15];
       sprintf(buffer, "S-%d-%d-%d-%d", currentColor.r, currentColor.g, currentColor.b, currentOpacity);
       Serial.println(buffer);
+      break;
+    case 'T':
+      setTime(atol(tokens[1]));
       break;
     default:
       Serial.println('?');
