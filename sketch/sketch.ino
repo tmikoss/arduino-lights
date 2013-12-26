@@ -11,8 +11,8 @@ uint8_t yellowPin = 12;
 uint8_t greenPin  = 13;
 uint8_t ledCount  = 25;
 
-RGB currentColor = { 255, 255, 255 };
-uint8_t currentOpacity = 10;
+RGB currentColor = { 255, 0, 0 };
+uint8_t currentOpacity = 0;
 uint32_t currentByteColor;
 
 String serialInput;
