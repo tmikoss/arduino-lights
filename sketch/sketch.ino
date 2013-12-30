@@ -1,7 +1,6 @@
 #include "SPI.h"
 #include "Adafruit_WS2801.h"
-#include <Time.h>  
-#include <TimeAlarms.h>
+#include <Time.h>
 #include <typedefs.h>
 
 int yellowPin = 12;
@@ -21,15 +20,15 @@ void setup() {
   strip.begin();
   strip.show();
   setTime(1357041600);
-  setupAlarms();
 }
 
 void loop() {
   readSerial();
-  showCurrentColor(); 
-  setCurrentByteColor();
+  maybeTriggerAlarm();
   adjustOpacity();
-  Alarm.delay(1);
+  setCurrentByteColor();
+  showCurrentColor();
+  delay(100);
 }
 
 //Alarms
@@ -37,11 +36,8 @@ void loop() {
 ALARM weekdayAlarm = { false, 6, 30 };
 ALARM weekendAlarm = { false, 9, 30 };
 
-timeDayOfWeek_t weekdays[5] = {dowMonday, dowTuesday, dowWednesday, dowThursday, dowFriday};
-timeDayOfWeek_t weekends[2] = {dowSaturday, dowSunday};
-
-AlarmID_t alarms[8]; //Days are 1-indexed in time lib
-
+long lastAlarmCheck   = 0;
+long lastTriggerAt    = 0;
 float adjustOpacityBy = 0;
 
 void adjustOpacity(){
@@ -49,27 +45,20 @@ void adjustOpacity(){
   currentOpacity += adjustOpacityBy;
   if(currentOpacity > 100) currentOpacity = 100;
   if(currentOpacity >= 100) adjustOpacityBy = 0;
-  setCurrentByteColor();
 }
 
 void triggerAlarm(){
+  if(now() - lastTriggerAt < 60) return;
+  lastTriggerAt = now();
   float minutesToMaxOpacity = 30.0;
-  adjustOpacityBy = minutesToMaxOpacity/550000.0;
+  adjustOpacityBy = minutesToMaxOpacity/5500.0;
 }
 
-void setupAlarm(timeDayOfWeek_t day, ALARM alarm){
-  if(alarms[day]) Alarm.free(alarms[day]);
-  alarms[day] = Alarm.alarmRepeat(day, alarm.hour, alarm.minute, 0, triggerAlarm);
-  if(!alarm.enabled) Alarm.disable(alarms[day]);
-}
-
-void setupAlarms(){
-  for(int i = 0; i < 5; i++){
-    setupAlarm(weekdays[i], weekdayAlarm);
-  }
-  for(int i = 0; i < 2; i++){
-    setupAlarm(weekends[i], weekendAlarm);
-  }
+void maybeTriggerAlarm(){
+  if(now() - lastAlarmCheck < 10) return;
+  ALARM currentAlarm = (weekday() == dowSaturday || weekday() == dowSunday) ? weekendAlarm : weekdayAlarm;
+  if(currentAlarm.enabled && currentAlarm.hour == hour() && currentAlarm.minute == minute()) triggerAlarm();
+  lastAlarmCheck = now();
 }
 
 // Color changes
@@ -116,13 +105,12 @@ void receiveCommand(String command){
     case 'A':
       weekdayAlarm = (ALARM){ toBool(tokens[1]), atoi(tokens[2]), atoi(tokens[3]) };
       weekendAlarm = (ALARM){ toBool(tokens[4]), atoi(tokens[5]), atoi(tokens[6]) };
-      setupAlarms();
       break;
     case 'S':
       char buffer[30];
       sprintf(buffer, "C-%d-%d-%d", currentColor.r, currentColor.g, currentColor.b);
       Serial.println(buffer);
-      sprintf(buffer, "O-%d", currentOpacity);
+      sprintf(buffer, "O-%d", (int)currentOpacity);
       Serial.println(buffer);
       sprintf(buffer, "A-%c-%d-%d-%c-%d-%d", toChar(weekdayAlarm.enabled), weekdayAlarm.hour, weekdayAlarm.minute, toChar(weekendAlarm.enabled), weekendAlarm.hour, weekendAlarm.minute);      
       Serial.println(buffer);
