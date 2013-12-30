@@ -20,13 +20,14 @@ void setup() {
   strip.begin();
   strip.show();
   setTime(1357041600);
+  setCurrentByteColor();
 }
 
 void loop() {
   readSerial();
   maybeTriggerAlarm();
+  maybeSleep();
   adjustOpacity();
-  setCurrentByteColor();
   showCurrentColor();
   delay(100);
 }
@@ -36,22 +37,26 @@ void loop() {
 ALARM weekdayAlarm = { false, 6, 30 };
 ALARM weekendAlarm = { false, 9, 30 };
 
-long lastAlarmCheck   = 0;
-long lastTriggerAt    = 0;
-float adjustOpacityBy = 0;
+long lastAlarmCheck    = 0;
+long lastTriggerAt     = 0;
+long lastColorUpdateAt = 0;
+float adjustOpacityBy  = 0;
+
+float opacityChagnePerMinute = 5500.0;
 
 void adjustOpacity(){
-  if(adjustOpacityBy <= 0) return;
+  if(adjustOpacityBy == 0) return;
   currentOpacity += adjustOpacityBy;
   if(currentOpacity > 100) currentOpacity = 100;
-  if(currentOpacity >= 100) adjustOpacityBy = 0;
+  if(currentOpacity < 0)   currentOpacity = 0;
+  if(currentOpacity == 100 || currentOpacity == 0) adjustOpacityBy = 0;
+  setCurrentByteColor();
 }
 
 void triggerAlarm(){
   if(now() - lastTriggerAt < 60) return;
   lastTriggerAt = now();
-  float minutesToMaxOpacity = 30.0;
-  adjustOpacityBy = minutesToMaxOpacity/5500.0;
+  adjustOpacityBy = 30.0/opacityChagnePerMinute;
 }
 
 void maybeTriggerAlarm(){
@@ -59,6 +64,10 @@ void maybeTriggerAlarm(){
   ALARM currentAlarm = (weekday() == dowSaturday || weekday() == dowSunday) ? weekendAlarm : weekdayAlarm;
   if(currentAlarm.enabled && currentAlarm.hour == hour() && currentAlarm.minute == minute()) triggerAlarm();
   lastAlarmCheck = now();
+}
+
+void maybeSleep(){
+  if(now() - lastColorUpdateAt > 60*60*2) adjustOpacityBy = -5.0/opacityChagnePerMinute;
 }
 
 // Color changes
@@ -70,7 +79,8 @@ void showCurrentColor() {
   strip.show();
 }
 
-void setCurrentByteColor(){  
+void setCurrentByteColor(){
+  lastColorUpdateAt = now();
   currentByteColor = (int)(currentColor.r * currentOpacity) / 100;
   currentByteColor <<= 8;
   currentByteColor |= (int)(currentColor.g * currentOpacity) / 100;
